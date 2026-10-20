@@ -13,9 +13,14 @@
 </div></header>
 <main>
 <h1>問答</h1>
-<section class="soon"><div class="badge">即將推出</div>
-<h2>問答功能準備中</h2>
-<p style="color:var(--mute);margin:0">之後會在這裡提供關於研究資料的問答，敬請期待。</p></section>
+<section>
+<label for="q" style="display:block;margin-bottom:6px;font-weight:500">輸入問題</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input id="q" type="text" maxlength="2000" placeholder="例如：哪一組的憂鬱平均最高？" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;color:var(--ink)">
+<button class="apply" id="send" type="button">送出</button>
+</div>
+<div id="ans" aria-live="polite" style="margin-top:14px;white-space:pre-wrap;line-height:1.7"></div>
+</section>
 <section>
 <h2>測試連線</h2>
 <button class="apply" id="ping" type="button">測試連線</button>
@@ -55,6 +60,23 @@ gem.addEventListener('click',async()=>{
     gemOut.textContent='連線失敗：'+e.message+'。請確認網址正確、Worker 已部署，且網路正常。';
   }finally{gem.disabled=false}
 });
+const q=document.getElementById('q'),send=document.getElementById('send'),ans=document.getElementById('ans');
+async function submitQ(){
+  const question=q.value.trim();
+  if(!question){ans.textContent='請先輸入問題。';return}
+  send.disabled=true;ans.style.color='var(--mute)';ans.textContent='回答中…';
+  try{
+    const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ask',question})});
+    const text=await res.text();
+    let data=null;try{data=JSON.parse(text)}catch(e){}
+    if(res.ok&&data&&typeof data.answer==='string'){ans.style.color='var(--ink)';ans.textContent=data.answer}
+    else ans.textContent='失敗（HTTP '+res.status+'）：'+((data&&data.error)||text);
+  }catch(e){
+    ans.textContent='連線失敗：'+e.message+'。請確認網址正確、Worker 已部署，且網路正常。';
+  }finally{send.disabled=false}
+}
+send.addEventListener('click',submitQ);
+q.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)submitQ()});
 </script>
 </body>
 </html>
