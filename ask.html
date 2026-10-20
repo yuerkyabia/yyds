@@ -16,8 +16,27 @@
 <section class="soon"><div class="badge">即將推出</div>
 <h2>問答功能準備中</h2>
 <p style="color:var(--mute);margin:0">之後會在這裡提供關於研究資料的問答，敬請期待。</p></section>
+<section>
+<h2>測試連線</h2>
+<button class="apply" id="ping" type="button">測試連線</button>
+<pre id="pingOut" aria-live="polite" style="margin:12px 0 0;white-space:pre-wrap;word-break:break-all;font-size:14px;color:var(--mute)"></pre>
+</section>
 </main>
-<footer class="foot"><div class="in"><span>組別：（請填寫）</span><span>組員：（請填寫）</span></div></footer>
+<footer class="foot"><div class="in"><span>組別：＿＿＿＿＿＿＿＿</span><span>組員：＿＿＿＿＿＿＿＿</span></div></footer>
 
+<script>
+const API_URL='https://helloworld.d84124091.workers.dev/';
+const btn=document.getElementById('ping'),out=document.getElementById('pingOut');
+btn.addEventListener('click',async()=>{
+  btn.disabled=true;out.textContent='連線中…';
+  try{
+    const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'test'})});
+    const text=await res.text();
+    out.textContent=res.ok?text:'失敗（HTTP '+res.status+'）：'+text;
+  }catch(e){
+    out.textContent='連線失敗：'+e.message+'。請確認網址正確、Worker 已部署，且網路正常。';
+  }finally{btn.disabled=false}
+});
+</script>
 </body>
 </html>
