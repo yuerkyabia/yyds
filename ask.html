@@ -21,6 +21,11 @@
 <button class="apply" id="ping" type="button">測試連線</button>
 <pre id="pingOut" aria-live="polite" style="margin:12px 0 0;white-space:pre-wrap;word-break:break-all;font-size:14px;color:var(--mute)"></pre>
 </section>
+<section>
+<h2>測試 Gemini</h2>
+<button class="apply" id="gem" type="button">測試 Gemini</button>
+<pre id="gemOut" aria-live="polite" style="margin:12px 0 0;white-space:pre-wrap;word-break:break-all;font-size:14px;color:var(--mute)"></pre>
+</section>
 </main>
 <footer class="foot"><div class="in"><span>組別：（請填寫）</span><span>組員：（請填寫）</span></div></footer>
 
@@ -36,6 +41,19 @@ btn.addEventListener('click',async()=>{
   }catch(e){
     out.textContent='連線失敗：'+e.message+'。請確認網址正確、Worker 已部署，且網路正常。';
   }finally{btn.disabled=false}
+});
+const gem=document.getElementById('gem'),gemOut=document.getElementById('gemOut');
+gem.addEventListener('click',async()=>{
+  gem.disabled=true;gemOut.textContent='Gemini 回覆中…';
+  try{
+    const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ask',question:'請用一句話自我介紹'})});
+    const text=await res.text();
+    let data=null;try{data=JSON.parse(text)}catch(e){}
+    if(res.ok&&data&&typeof data.answer==='string')gemOut.textContent=data.answer;
+    else gemOut.textContent='失敗（HTTP '+res.status+'）：'+((data&&data.error)||text);
+  }catch(e){
+    gemOut.textContent='連線失敗：'+e.message+'。請確認網址正確、Worker 已部署，且網路正常。';
+  }finally{gem.disabled=false}
 });
 </script>
 </body>
