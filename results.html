@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>研究結果｜婚姻狀態與憂鬱、焦慮、壓力的關係</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="index.html">婚姻狀態與憂鬱、焦慮、壓力</a>
+<nav aria-label="主要導覽"><a href="index.html">首頁</a><a href="results.html" aria-current="page">研究結果</a><a href="ask.html">問答</a><a href="about.html">關於研究</a></nav>
+</div></header>
+<main>
+<h1>研究結果</h1>
+<p class="lead">DASS-42 共 42 題，憂鬱、焦慮、壓力各 14 題，每題以 1–4 分作答，計分時減 1 成為 0–3 分後加總，各分量表總分範圍為 0–42。</p>
+
+<section>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="圖表切換">
+      <button id="m1" aria-pressed="true">婚姻狀態對各分量的平均</button>
+      <button id="m2" aria-pressed="false">各婚姻狀態嚴重度分布</button>
+    </div>
+    <div class="picks" id="picks"></div>
+  </div>
+  <div id="chart"></div>
+</section>
+
+<section>
+  <h2 id="ttl">統計表格</h2>
+  <div class="wrap"><table id="tbl"></table></div>
+</section>
+
+<section class="note" id="note"></section>
+
+<section>
+  <details id="dataBox">
+    <summary>貼上試算表資料</summary>
+    <p style="color:var(--mute);font-size:14px;margin:8px 0">資料已內建，如需更新可重新貼上。嚴重度可貼人數或比例：在 Google Sheets 選取範圍後複製（Ctrl/Cmd+C），貼到對應方框。標題列可一併貼上，網頁會自動略過。</p>
+    <div class="grid">
+      <div><label for="ta0">婚姻狀態統計（編碼、婚姻狀態、人數、憂鬱平均與 SD、焦慮平均與 SD、壓力平均與 SD）</label><textarea id="ta0"></textarea></div>
+      <div><label for="ta1">憂鬱嚴重度人數或比例（正常至極重度，5 欄，列順序同上表：未婚、已婚、曾婚）</label><textarea id="ta1"></textarea></div>
+      <div><label for="ta2">焦慮嚴重度人數或比例（5 欄）</label><textarea id="ta2"></textarea></div>
+      <div><label for="ta3">壓力嚴重度人數或比例（5 欄）</label><textarea id="ta3"></textarea></div>
+    </div>
+    <button class="apply" id="apply">套用資料</button><span id="msg"></span>
+  </details>
+</section>
+</main>
+<div id="tip"></div>
+<footer class="foot"><div class="in"><span>組別：（請填寫）</span><span>組員：（請填寫）</span></div></footer>
+<script>
+const SUB=[{k:'d',name:'憂鬱',c:'#2F5D9E'},{k:'a',name:'焦慮',c:'#C0652B'},{k:'s',name:'壓力',c:'#3E8A64'}];
+const LV=['正常','輕度','中度','重度','極重度'];
+const LC=['#DCE6F1','#AFC8E0','#729FCA','#3C6DA3','#1F3B63'];
+let A=[],B={d:[],a:[],s:[]},mode=1,sel=new Set(['d','a','s']),one='d';
+const $=id=>document.getElementById(id);
+const num=x=>{const v=parseFloat(String(x).replace(/,/g,''));return isNaN(v)?null:v};
+const f2=v=>v==null?'—':v.toFixed(2);
+const NS='http://www.w3.org/2000/svg';
+
+function rows(t){return t.split(/\r?\n/).map(l=>l.split('\t')).filter(r=>r.some(c=>c.trim()!==''))}
+function parseA(t){
+  return rows(t).filter(r=>r.length>=9&&num(r[2])!==null).map(r=>({
+    label:r[1].trim(),n:num(r[2]),
+    m:{d:num(r[3]),a:num(r[5]),s:num(r[7])},sd:{d:num(r[4]),a:num(r[6]),s:num(r[8])}}));
+}
+function parseB(t){return rows(t).map(r=>r.slice(-5).map(num)).filter(r=>r.length===5&&r.every(v=>v!==null))}
+function valid(){return A.map((g,i)=>({g,i})).filter(o=>o.g.n>0)}
+const lab=g=>`${g.label}（n=${g.n}）`;
+
+function tip(el,html){
+  const t=$('tip');
+  el.addEventListener('mousemove',e=>{t.innerHTML=html;t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px'});
+  el.addEventListener('mouseleave',()=>t.style.display='none');
+}
+function el(tag,attr,parent,text){
+  const e=document.createElementNS(NS,tag);
+  for(const k in attr)e.setAttribute(k,attr[k]);
+  if(text!=null)e.textContent=text;
+  if(parent)parent.appendChild(e);return e;
+}
+
+function picks(){
+  const box=$('picks');box.innerHTML='';
+  SUB.forEach(s=>{
+    const l=document.createElement('label');
+    const i=document.createElement('input');
+    i.type=mode===1?'checkbox':'radio';i.name='sub';
+    i.checked=mode===1?sel.has(s.k):one===s.k;
+    i.onchange=()=>{
+      if(mode===1){
+        if(!i.checked&&sel.size===1){i.checked=true;return}
+        i.checked?sel.add(s.k):sel.delete(s.k);
+      }else one=s.k;
+      render();
+    };
+    l.append(i);
+    l.insertAdjacentHTML('beforeend',`<span class="sw" style="background:${s.c}"></span>${s.name}`);
+    box.append(l);
+  });
+}
+
+function chart1(){
+  const V=valid(),W=820,H=400,m={l:52,r:20,t:18,b:60},iw=W-m.l-m.r,ih=H-m.t-m.b;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'各婚姻狀態組憂鬱、焦慮、壓力平均折線圖'});
+  const y=v=>m.t+ih*(1-Math.max(0,Math.min(42,v))/42);
+  const x=i=>m.l+(i+.5)*iw/V.length;
+  for(let v=0;v<=42;v+=6){
+    el('line',{x1:m.l,x2:W-m.r,y1:y(v),y2:y(v),stroke:'#E3E8ED'},svg);
+    el('text',{x:m.l-8,y:y(v)+4,'text-anchor':'end'},svg,v);
+  }
+  el('text',{x:14,y:m.t+ih/2,transform:`rotate(-90 14 ${m.t+ih/2})`,'text-anchor':'middle'},svg,'分量表總分（0–42）');
+  V.forEach((o,i)=>el('text',{x:x(i),y:H-m.b+22,'text-anchor':'middle'},svg,lab(o.g)));
+  SUB.filter(s=>sel.has(s.k)).forEach(s=>{
+    const pts=V.map((o,i)=>({o,i,m:o.g.m[s.k],sd:o.g.sd[s.k]})).filter(p=>p.m!=null);
+    el('polyline',{points:pts.map(p=>`${x(p.i)},${y(p.m)}`).join(' '),fill:'none',stroke:s.c,'stroke-width':2.5},svg);
+    pts.forEach(p=>{
+      const ci=p.sd!=null?1.96*p.sd/Math.sqrt(p.o.g.n):0,cx=x(p.i);
+      el('line',{x1:cx,x2:cx,y1:y(p.m-ci),y2:y(p.m+ci),stroke:s.c,'stroke-width':1.5},svg);
+      [p.m-ci,p.m+ci].forEach(v=>el('line',{x1:cx-5,x2:cx+5,y1:y(v),y2:y(v),stroke:s.c,'stroke-width':1.5},svg));
+      el('circle',{cx,cy:y(p.m),r:5,fill:'#fff',stroke:s.c,'stroke-width':2.5},svg);
+      const hit=el('circle',{cx,cy:y(p.m),r:13,fill:'transparent'},svg);
+      tip(hit,`<b>${s.name}</b>　${p.o.g.label}<br>平均 ${f2(p.m)}，SD ${f2(p.sd)}`);
+    });
+  });
+  return svg;
+}
+
+function chart2(){
+  const V=valid(),rowH=54,m={l:190,r:20,t:14,b:36},W=820,H=m.t+m.b+rowH*V.length,iw=W-m.l-m.r;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'各婚姻狀態嚴重度堆疊長條圖'});
+  const x=p=>m.l+iw*p/100;
+  for(let p=0;p<=100;p+=20){
+    el('line',{x1:x(p),x2:x(p),y1:m.t,y2:H-m.b,stroke:'#E3E8ED'},svg);
+    el('text',{x:x(p),y:H-m.b+20,'text-anchor':'middle'},svg,p+'%');
+  }
+  V.forEach((o,r)=>{
+    const cnt=B[one][o.i],yy=m.t+r*rowH+8;
+    el('text',{x:m.l-10,y:yy+17,'text-anchor':'end'},svg,lab(o.g));
+    if(!cnt)return;
+    const tot=cnt.reduce((a,b)=>a+b,0);if(!tot)return;
+    let acc=0;
+    cnt.forEach((c,k)=>{
+      const p=100*c/tot,w=x(p)-x(0);
+      const rc=el('rect',{x:x(acc),y:yy,width:Math.max(w,0),height:34,fill:LC[k],stroke:'#fff'},svg);
+      tip(rc,`<b>${LV[k]}</b><br>${p.toFixed(1)}%`);
+      if(p>=7)el('text',{x:x(acc)+w/2,y:yy+22,'text-anchor':'middle',style:`fill:${k>=2?'#fff':'#1E2833'}`,'pointer-events':'none'},svg,p.toFixed(0)+'%');
+      acc+=p;
+    });
+  });
+  return svg;
+}
+
+function legend(){
+  return `<div style="margin-top:6px;font-size:13px;color:var(--mute)">${LV.map((n,k)=>`<span class="sw" style="background:${LC[k]}"></span>${n}`).join('　')}</div>`;
+}
+
+function table(){
+  const V=valid(),t=$('tbl');
+  if(mode===1){
+    $('ttl').textContent='統計表格：各婚姻狀態組分量表總分';
+    const ss=SUB.filter(s=>sel.has(s.k));
+    let h='<tr><th>婚姻狀態</th><th>人數</th>'+ss.map(s=>`<th>${s.name}平均</th><th>${s.name}SD</th><th>${s.name} 95% CI</th>`).join('')+'</tr>';
+    V.forEach(o=>{
+      h+=`<tr><td>${o.g.label}</td><td>${o.g.n}</td>`+ss.map(s=>{
+        const m=o.g.m[s.k],sd=o.g.sd[s.k],ci=sd!=null?1.96*sd/Math.sqrt(o.g.n):null;
+        return `<td>${f2(m)}</td><td>${f2(sd)}</td><td>${ci==null||m==null?'—':f2(m-ci)+' – '+f2(m+ci)}</td>`}).join('')+'</tr>';
+    });
+    t.innerHTML=h;
+  }else{
+    const s=SUB.find(x=>x.k===one);
+    $('ttl').textContent=`統計表格：${s.name}嚴重度人數與百分比`;
+    let h='<tr><th>婚姻狀態</th><th>人數</th>'+LV.map(n=>`<th>${n}</th>`).join('')+'</tr>';
+    V.forEach(o=>{
+      const c=B[one][o.i];
+      h+=`<tr><td>${o.g.label}</td><td>${o.g.n}</td>`+LV.map((_,k)=>{
+        if(!c)return '<td>—</td>';
+        const tot=c.reduce((a,b)=>a+b,0);
+        const pct=tot?(100*c[k]/tot).toFixed(1)+'%':'—';return tot<=1.01?`<td>${pct}</td>`:`<td>${c[k]}（${pct}）</td>`}).join('')+'</tr>';
+    });
+    t.innerHTML=h;
+  }
+}
+
+function note(){
+  $('note').innerHTML=mode===1?
+  `<h2>註解</h2><ul>
+   <li><b>平均</b>：該婚姻狀態組在該分量表的平均總分（0–42），分數越高代表症狀越多。</li>
+   <li><b>SD</b>：標準差，代表組內分數的分散程度。</li>
+   <li><b>95% CI</b>：以 平均 ± 1.96 × SD ÷ √n 計算的信賴區間，誤差線越短代表估計越穩定；兩組區間不重疊時，差異較可能真實存在。</li>
+   <li>這是橫斷面的自願性網路樣本，各組人數差異大，不能推論到全體人口，也不能據此說明婚姻狀態造成差異。婚姻狀態與年齡高度相關（例如未婚者多半較年輕），年齡可能是干擾因素。人數較少的組（如曾婚），區間會較寬，請謹慎解讀。</li></ul>`:
+  `<h2>註解</h2><ul>
+   <li>每個區段是該婚姻狀態組中屬於該嚴重度等級的人數百分比，各組合計為 100%。</li>
+   <li>等級依分量表總分（0–3 計分後加總）切分，各分量表的切分點不同，因此切換分量表時等級的意義不同。</li>
+   <li>嚴重度只是篩檢用的描述性分類，不等於臨床診斷。</li>
+   <li>人數較少的組，百分比容易受少數個案影響。</li></ul>`;
+}
+
+function render(){
+  $('m1').setAttribute('aria-pressed',mode===1);$('m2').setAttribute('aria-pressed',mode===2);
+  picks();
+  const c=$('chart');c.innerHTML='';
+  const V=valid();
+  if(!V.length){c.innerHTML='<div class="empty">尚無資料。請展開頁面底部的「貼上試算表資料」。</div>';$('tbl').innerHTML='';note();return}
+  if(mode===2&&!B[one].length){c.innerHTML='<div class="empty">尚未貼入此分量表的嚴重度人數，請展開頁面底部的「貼上試算表資料」。</div>';$('tbl').innerHTML='';note();return}
+  c.append(mode===1?chart1():chart2());
+  if(mode===2)c.insertAdjacentHTML('beforeend',legend());
+  table();note();
+}
+
+$('m1').onclick=()=>{mode=1;render()};
+$('m2').onclick=()=>{mode=2;render()};
+$('apply').onclick=()=>{
+  const ta=[0,1,2,3].map(i=>$('ta'+i).value);
+  A=parseA(ta[0]);
+  ['d','a','s'].forEach((k,i)=>B[k]=parseB(ta[i+1]));
+  const bad=['d','a','s'].filter(k=>B[k].length&&B[k].length!==A.length).length;
+  $('msg').textContent=A.length?`已讀入 ${A.length} 組${bad?'；嚴重度列數與婚姻狀態組數不同，請檢查貼上範圍':''}`:'未讀到有效資料，請確認貼上範圍';
+  try{localStorage.setItem('dassMarital2',JSON.stringify(ta))}catch(e){}
+  render();
+};
+$('ta0').value="編碼\t婚姻狀態\t人數\t憂鬱平均\t憂鬱SD\t焦慮平均\t焦慮SD\t壓力平均\t壓力SD\n1\t未婚\t3604\t21.24278579\t12.08886242\t16.39150943\t10.0725178\t21.29189789\t10.34480383\n2\t已婚\t455\t15.0021978\t11.61354573\t10.64835165\t8.949409483\t17.93186813\t10.68315071\n3\t曾婚\t100\t17.4\t12.50212103\t11.65\t9.23254564\t18.67\t10.44954689";
+$('ta1').value="婚姻狀態\t正常\t輕度\t中度\t重度\t極重度\n未婚\t0.2100443951\t0.09378468368\t0.1867369589\t0.1645394007\t0.3448945616\n已婚\t0.4087912088\t0.1054945055\t0.1912087912\t0.1230769231\t0.1714285714\n曾婚\t0.38\t0.08\t0.14\t0.16\t0.24";
+$('ta2').value="婚姻狀態\t正常\t輕度\t中度\t重度\t極重度\n未婚\t0.2272475028\t0.07103218646\t0.1845172031\t0.1545504994\t0.3626526082\n已婚\t0.4659340659\t0.08351648352\t0.178021978\t0.09450549451\t0.178021978\n曾婚\t0.37\t0.11\t0.22\t0.11\t0.19";
+$('ta3').value="婚姻狀態\t正常\t輕度\t中度\t重度\t極重度\n未婚\t0.288845727\t0.1243063263\t0.2269700333\t0.2125416204\t0.147336293\n已婚\t0.4307692308\t0.1208791209\t0.189010989\t0.1604395604\t0.0989010989\n曾婚\t0.37\t0.14\t0.21\t0.21\t0.07";
+$('apply').click();
+try{
+  const s=JSON.parse(localStorage.getItem('dassMarital2')||'null');
+  if(s){s.forEach((v,i)=>$('ta'+i).value=v);$('apply').click()}
+}catch(e){}
+render();
+</script>
+</body>
+</html>

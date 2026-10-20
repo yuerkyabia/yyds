@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>婚姻狀態與憂鬱、焦慮、壓力的關係</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site"><div class="in">
+<a class="brand" href="index.html">婚姻狀態與憂鬱、焦慮、壓力</a>
+<nav aria-label="主要導覽"><a href="index.html" aria-current="page">首頁</a><a href="results.html">研究結果</a><a href="ask.html">問答</a><a href="about.html">關於研究</a></nav>
+</div></header>
+<main>
+<h1>婚姻狀態與憂鬱、焦慮、壓力的關係</h1>
+<p class="lead">本研究使用線上版 DASS 憂鬱焦慮壓力量表的自願填答資料，比較未婚、已婚、曾婚三組在憂鬱、焦慮與壓力分量表上的平均分數與嚴重度分布。</p>
+<div class="cards" id="cards" aria-label="重點數字"></div>
+<div class="cards">
+<a class="tile" href="results.html"><b>研究結果</b><span>互動圖表、統計表格與註解</span></a>
+<a class="tile" href="ask.html"><b>問答</b><span>即將推出</span></a>
+<a class="tile" href="about.html"><b>關於研究</b><span>資料來源、研究方法與樣本限制</span></a>
+</div>
+</main>
+<footer class="foot"><div class="in"><span>組別：（請填寫）</span><span>組員：（請填寫）</span></div></footer>
+<script>
+const DATA=[
+{label:'未婚',n:3604,d:21.24278579,a:16.39150943,s:21.29189789},
+{label:'已婚',n:455,d:15.0021978,a:10.64835165,s:17.93186813},
+{label:'曾婚',n:100,d:17.4,a:11.65,s:18.67}];
+const top=k=>DATA.reduce((p,c)=>c[k]>p[k]?c:p);
+const total=DATA.reduce((a,g)=>a+g.n,0);
+const cards=[
+ ['總樣本數',total.toLocaleString('zh-TW'),'三個婚姻狀態組合計'],
+ ['憂鬱平均最高的組別',top('d').label,'平均 '+top('d').d.toFixed(2)+'（0–42）'],
+ ['焦慮平均最高的組別',top('a').label,'平均 '+top('a').a.toFixed(2)+'（0–42）']];
+document.getElementById('cards').innerHTML=cards.map(c=>`<div class="card"><div class="k">${c[0]}</div><div class="v">${c[1]}</div><div class="s">${c[2]}</div></div>`).join('');
+</script>
+</body>
+</html>
